@@ -34,6 +34,7 @@ byte master_state = 0x0; //Off=0, Pattern=1, Color=2
 
 MFRC522 mfrc522(SS_PIN, RST_PIN);  // Create MFRC522 instance
 #include "MFRC522_func.h"
+#include <ESP8266HTTPClient.h>
 
 MFRC522::MIFARE_Key key;
 //MFRC522::StatusCode status;
@@ -41,8 +42,8 @@ byte sector         = 1;
 byte blockAddr      = 4;
 byte dataBlock[]    = {
         0x00, 0x00, 0x00, 0x00, //  byte 1 for color encoding
-        0x00, 0x00, 0x00, 0x00, 
-        0x00, 0x00, 0x00, 0x00, 
+        0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x04  // byte 15 for event track bit[0] = burnerot2018, bit[1] = contra2019, bit[2] = Midburn2022
     };
 byte trailerBlock   = 7;
@@ -56,6 +57,11 @@ bool send_chip_data = true;
 bool is_old_chip = false;
 byte chip_color = 0x0;
 
+HTTPClient http;
+const char* trigger[] = {"party", "chill", "psychedelic", "mystery", "background"};
+byte trigger_index = 0;
+unsigned long lastChangeTime = 0;
+const unsigned long COLOR_MODE_TIMEOUT = 5000; // 5 seconds
 
 void connectToMqtt() {
   Serial.println("[MQTT] Connecting to MQTT...");
@@ -86,7 +92,7 @@ void connectToWifi() {
   else {
     Serial.println(WiFi.localIP());
     wifiReconnectTimer.detach();
-    connectToMqtt();
+    // connectToMqtt();
   }
 }
 
@@ -94,7 +100,7 @@ void onWifiConnect(const WiFiEventStationModeGotIP& event) {
   Serial.print("[WiFi] Connected, IP address: ");
   Serial.println(WiFi.localIP());
   wifiReconnectTimer.detach();
-  connectToMqtt();
+//   connectToMqtt();
 }
 
 void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
@@ -171,14 +177,14 @@ void setup() {
   wifiConnectHandler = WiFi.onStationModeGotIP(onWifiConnect);
   wifiDisconnectHandler = WiFi.onStationModeDisconnected(onWifiDisconnect);
 
-  mqttClient.onConnect(onMqttConnect);
-  mqttClient.onDisconnect(onMqttDisconnect);
-  mqttClient.onMessage(onMqttMessage);
-  mqttClient.setServer(MQTT_HOST, MQTT_PORT);
+//   mqttClient.onConnect(onMqttConnect);
+//   mqttClient.onDisconnect(onMqttDisconnect);
+//   mqttClient.onMessage(onMqttMessage);
+//   mqttClient.setServer(MQTT_HOST, MQTT_PORT);
 
-  if (MQTT_USER != "") {
-    mqttClient.setCredentials(MQTT_USER, MQTT_PASS);
-  }
+//   if (MQTT_USER != "") {
+//     mqttClient.setCredentials(MQTT_USER, MQTT_PASS);
+//   }
 
   connectToWifi();
   // Turn ON board led after wifi connect
@@ -189,6 +195,10 @@ void setup() {
  * Main loop.
  */
 void loop() {
+  if ((master_state == 2) && (millis() - lastChangeTime > COLOR_MODE_TIMEOUT)) {
+    master_state = 0; // turn off after timeout
+    FastLED.clear();
+  }
   set_leds(color, master_state);
   FastLED.show();
   FastLED.delay(20);
@@ -230,6 +240,22 @@ void loop() {
       return;
   }
 
+// send http post request to LED_TRIGGER_SERVICE_IP:LED_TRIGGER_SERVICE_PORT/trigger/{trigger}
+    const char* currTrigger = trigger[trigger_index];
+    http.begin("http://" + String(LED_TRIGGER_SERVICE_IP)+ ":" + String(LED_TRIGGER_SERVICE_PORT) + "/trigger/" + String(currTrigger));
+    http.addHeader("Content-Type", "application/json");
+    int httpResponseCode = http.POST("{}");
+    http.end();
+    color = trigger_index + 1; // color by index
+    Serial.print("color: ");
+    Serial.println(color);
+    // set master state to color mode for 5 seconds
+    master_state = 2; // set to color mode
+    lastChangeTime = millis();
+    FastLED.clear();
+    trigger_index = (trigger_index + 1) % (sizeof(trigger)/sizeof(trigger[0]));
+
+/*
   // perform authentication to open communication
   auth_success = authenticate(trailerBlock, key);
   if (!auth_success) {
@@ -273,11 +299,11 @@ void loop() {
   // after changing old chips to new format testing for old chips is done on byte 15 bit[0]
   is_old_chip = (buffer[15] & 0x01);
   chip_color = buffer[1]; // color is at byte 1
-  
+
   if (mqttClient.connected() && send_chip_data) {
     StaticJsonDocument<128> chip_data;
     chip_data["UID"] = UID;
-    chip_data["color"] = chip_color; 
+    chip_data["color"] = chip_color;
     chip_data["old_chip"] = is_old_chip;
     char chip_data_buffer[100];
     serializeJson(chip_data, chip_data_buffer);
@@ -290,9 +316,10 @@ void loop() {
   // Serial.println(F("Current data in sector:"));
   // mfrc522.PICC_DumpMifareClassicSectorToSerial(&(mfrc522.uid), &key, sector);
   // Serial.println();
+*/
 
   // Halt PICC
   mfrc522.PICC_HaltA();
   // Stop encryption on PCD
-  mfrc522.PCD_StopCrypto1();
+//   mfrc522.PCD_StopCrypto1();
 }
