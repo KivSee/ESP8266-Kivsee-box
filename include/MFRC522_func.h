@@ -6,6 +6,7 @@ void dump_byte_array(byte *buffer, byte bufferSize) {
         Serial.print(buffer[i] < 0x10 ? " 0" : " ");
         Serial.print(buffer[i], HEX);
     }
+    Serial.println();
 }
 
 bool authenticate(byte trailerBlock, MFRC522::MIFARE_Key key) {
@@ -24,7 +25,7 @@ bool authenticate(byte trailerBlock, MFRC522::MIFARE_Key key) {
 
 bool read_block(byte blockAddr, byte buffer[], byte size) {
     MFRC522::StatusCode status;
-    
+
     // Read data from the block
     Serial.print(F("Reading data from block ")); Serial.print(blockAddr);
     Serial.println(F(" ..."));
@@ -51,7 +52,7 @@ bool write_and_verify(byte blockAddr, byte dataBlock[], byte buffer[], byte size
     //    Serial.println(mfrc522.GetStatusCodeName(status));
     //    return false;
     //}
-    
+
     // Write data to the block
     Serial.print(F("Writing data into block ")); Serial.print(blockAddr);
     Serial.println(F(" ..."));
@@ -97,7 +98,7 @@ bool write_and_verify(byte blockAddr, byte dataBlock[], byte buffer[], byte size
     }
 }
 
-bool UIDcompare (unsigned int prevUID[], unsigned int currUID[], int UIDLen) {
+bool UIDcompare (byte prevUID[], byte currUID[], int UIDLen) {
     for (int i = 0; i < UIDLen; i++) {
         if (prevUID[i] != currUID[i])
             return false;
