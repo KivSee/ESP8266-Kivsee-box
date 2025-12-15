@@ -41,8 +41,8 @@ byte sector         = 1;
 byte blockAddr      = 4;
 byte dataBlock[]    = {
         0x00, 0x00, 0x00, 0x00, //  byte 1 for color encoding
-        0x00, 0x00, 0x00, 0x00, 
-        0x00, 0x00, 0x00, 0x00, 
+        0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x04  // byte 15 for event track bit[0] = burnerot2018, bit[1] = contra2019, bit[2] = Midburn2022
     };
 byte trailerBlock   = 7;
@@ -183,6 +183,7 @@ void setup() {
   connectToWifi();
   // Turn ON board led after wifi connect
   digitalWrite(LED_GPIO,HIGH);
+  Serial.println("Setup done.");
 }
 
 /**
@@ -219,71 +220,72 @@ void loop() {
 
   // get PICC card type
   // Serial.print(F("PICC type: "));
-  MFRC522::PICC_Type piccType = mfrc522.PICC_GetType(mfrc522.uid.sak);
+//   MFRC522::PICC_Type piccType = mfrc522.PICC_GetType(mfrc522.uid.sak);
   // Serial.println(mfrc522.PICC_GetTypeName(piccType));
 
   // Check for compatibility
-  if (    piccType != MFRC522::PICC_TYPE_MIFARE_MINI
-      &&  piccType != MFRC522::PICC_TYPE_MIFARE_1K
-      &&  piccType != MFRC522::PICC_TYPE_MIFARE_4K) {
-      Serial.println(F("Not a MIFARE Classic card."));
-      return;
-  }
+//   if (    piccType != MFRC522::PICC_TYPE_MIFARE_MINI
+//       &&  piccType != MFRC522::PICC_TYPE_MIFARE_1K
+//       &&  piccType != MFRC522::PICC_TYPE_MIFARE_4K) {
+//       Serial.println(F("Not a MIFARE Classic card."));
+//       return;
+//   }
 
   // perform authentication to open communication
-  auth_success = authenticate(trailerBlock, key);
-  if (!auth_success) {
-    //Serial.println(F("Authentication failed"));
-    return;
-  }
+//   auth_success = authenticate(trailerBlock, key);
+//   if (!auth_success) {
+//     //Serial.println(F("Authentication failed"));
+//     return;
+//   }
 
   // read the tag to get coded information
-  read_success = read_block(blockAddr, buffer, size);
-  if (!read_success) {
-    //Serial.println(F("Initial read failed, closing connection"));
-    // Halt PICC
-    mfrc522.PICC_HaltA();
-    // Stop encryption on PCD
-    mfrc522.PCD_StopCrypto1();
-    return;
-  }
+//   read_success = read_block(blockAddr, buffer, size);
+//   if (!read_success) {
+//     //Serial.println(F("Initial read failed, closing connection"));
+//     // Halt PICC
+//     mfrc522.PICC_HaltA();
+//     // Stop encryption on PCD
+//     mfrc522.PCD_StopCrypto1();
+//     return;
+//   }
 
   // consider not sending the chip data if its the same chip? prevent system load and errors?
   String UID = String(readCard[0],HEX) + String(readCard[1],HEX) + String(readCard[2],HEX) + String(readCard[3],HEX);
 
   // check if its an old chip and encode it with new format
-  is_old_chip = (buffer[0] != 0x00);  // first byte not 0x00 means old chip
-  if (is_old_chip) {
-    dataBlock[1] = buffer[1] & 0x0F; // remove valid and win bits from color byte
-    dataBlock[15] = 0x04;   // last byte for event track, bit[0] = burnerot2018, bit[1] = contra2019, bit[2] = Midburn2022
-    write_success = write_and_verify(blockAddr, dataBlock, buffer, size);
-    if (write_success) {
-      Serial.println(F("write worked, old chip converted to new format"));
-    }
-    else {
-      Serial.println(F("write failed! aborting chip handling"));
-      // Halt PICC
-      mfrc522.PICC_HaltA();
-      // Stop encryption on PCD
-      mfrc522.PCD_StopCrypto1();
-      return;
-    }
-  }
+//   is_old_chip = (buffer[0] != 0x00);  // first byte not 0x00 means old chip
+//   if (is_old_chip) {
+//     dataBlock[1] = buffer[1] & 0x0F; // remove valid and win bits from color byte
+//     dataBlock[15] = 0x04;   // last byte for event track, bit[0] = burnerot2018, bit[1] = contra2019, bit[2] = Midburn2022
+//     write_success = write_and_verify(blockAddr, dataBlock, buffer, size);
+//     if (write_success) {
+//       Serial.println(F("write worked, old chip converted to new format"));
+//     }
+//     else {
+//       Serial.println(F("write failed! aborting chip handling"));
+//       // Halt PICC
+//       mfrc522.PICC_HaltA();
+//       // Stop encryption on PCD
+//       mfrc522.PCD_StopCrypto1();
+//       return;
+//     }
+//   }
 
   // after changing old chips to new format testing for old chips is done on byte 15 bit[0]
   is_old_chip = (buffer[15] & 0x01);
   chip_color = buffer[1]; // color is at byte 1
-  
+
   if (mqttClient.connected() && send_chip_data) {
     StaticJsonDocument<128> chip_data;
     chip_data["UID"] = UID;
-    chip_data["color"] = chip_color; 
+    chip_data["color"] = chip_color;
     chip_data["old_chip"] = is_old_chip;
     char chip_data_buffer[100];
     serializeJson(chip_data, chip_data_buffer);
     mqttClient.publish(MQTT_TOPIC_CHIP, MQTT_TOPIC_CHIP_QoS, false, chip_data_buffer);
     Serial.print("Sending chip data: ");
     serializeJson(chip_data, Serial);
+    Serial.println();
   }
 
   // Dump the sector data, good for debug

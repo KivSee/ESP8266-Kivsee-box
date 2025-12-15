@@ -1,14 +1,14 @@
 #include "secrets.h"
 
 // MQTT Broker Config
-#define MQTT_HOST IPAddress(10, 0, 0, 200)
+#define MQTT_HOST IPAddress(10, 0, 1, 200)
 #define MQTT_PORT 1883
 #define MQTT_USER ""
 #define MQTT_PASS ""
 #define MQTT_RECONNECT_TIME 2 // in seconds
 
 // MQTT Client Config
-#define MQTT_CLIENT_ID "/sensors/rfid"
+#define MQTT_CLIENT_ID "sensors/rfid"
 // change box number for each box!
 #define MQTT_UNIQUE_ID "/box1"
 #define MQTT_TOPIC_MONITOR MQTT_CLIENT_ID MQTT_UNIQUE_ID "/monitor"
