@@ -164,7 +164,7 @@ void setup() {
   }
 
   FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_LEDS);
-  FastLED.setBrightness(64);
+  FastLED.setBrightness(32);
 
   pinMode(LED_GPIO, OUTPUT);
 
@@ -181,6 +181,41 @@ void setup() {
   }
 
   connectToWifi();
+
+  // Configure OTA
+  ArduinoOTA.setHostname(WIFI_CLIENT_ID);
+  ArduinoOTA.onStart([]() {
+    String type;
+    if (ArduinoOTA.getCommand() == U_FLASH) {
+      type = "sketch";
+    } else {
+      type = "filesystem";
+    }
+    Serial.println("[OTA] Start updating " + type);
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\n[OTA] Update complete");
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("[OTA] Progress: %u%%\r", (progress / (total / 100)));
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("[OTA] Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) {
+      Serial.println("Auth Failed");
+    } else if (error == OTA_BEGIN_ERROR) {
+      Serial.println("Begin Failed");
+    } else if (error == OTA_CONNECT_ERROR) {
+      Serial.println("Connect Failed");
+    } else if (error == OTA_RECEIVE_ERROR) {
+      Serial.println("Receive Failed");
+    } else if (error == OTA_END_ERROR) {
+      Serial.println("End Failed");
+    }
+  });
+  ArduinoOTA.begin();
+  Serial.println("[OTA] Ready");
+
   // Turn ON board led after wifi connect
   digitalWrite(LED_GPIO,HIGH);
   Serial.println("Setup done.");
@@ -190,6 +225,8 @@ void setup() {
  * Main loop.
  */
 void loop() {
+  ArduinoOTA.handle();
+
   set_leds(color, master_state);
   FastLED.show();
   FastLED.delay(20);
@@ -286,6 +323,7 @@ void loop() {
     Serial.print("Sending chip data: ");
     serializeJson(chip_data, Serial);
     Serial.println();
+    color = 128; // set leds to rainbow on chip read
   }
 
   // Dump the sector data, good for debug
