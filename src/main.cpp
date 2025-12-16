@@ -1,11 +1,11 @@
 #define ARDUINOJSON_USE_LONG_LONG 1
-#define FASTLED_ESP8266_DMA
+#define FASTLED_ESP32_I2S
 
 #include <Arduino.h>
 #include <SPI.h>
 #include <MFRC522.h>
 #include <FastLED.h>
-#include <ESP8266WiFi.h>
+#include <WiFi.h>
 #include <Ticker.h>
 #include <AsyncMqttClient.h>
 #include <ArduinoJson.h>
@@ -15,16 +15,13 @@
 
 AsyncMqttClient mqttClient;
 Ticker mqttReconnectTimer;
-
-WiFiEventHandler wifiConnectHandler;
-WiFiEventHandler wifiDisconnectHandler;
 Ticker wifiReconnectTimer;
 
 #define RING_LEDS 16
 #define RINGS     4
 #define NUM_LEDS (RING_LEDS*RINGS)
-#define DATA_PIN 9
-#define LED_GPIO D0
+#define DATA_PIN 13
+#define LED_GPIO 2
 
 // Define the array of leds
 CRGB leds[NUM_LEDS];
@@ -90,14 +87,14 @@ void connectToWifi() {
   }
 }
 
-void onWifiConnect(const WiFiEventStationModeGotIP& event) {
+void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
   Serial.print("[WiFi] Connected, IP address: ");
   Serial.println(WiFi.localIP());
   wifiReconnectTimer.detach();
   connectToMqtt();
 }
 
-void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
+void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info) {
   Serial.println("[WiFi] Disconnected from Wi-Fi!");
   mqttReconnectTimer.detach(); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
   wifiReconnectTimer.once(WIFI_RECONNECT_TIME, connectToWifi);
@@ -168,8 +165,8 @@ void setup() {
 
   pinMode(LED_GPIO, OUTPUT);
 
-  wifiConnectHandler = WiFi.onStationModeGotIP(onWifiConnect);
-  wifiDisconnectHandler = WiFi.onStationModeDisconnected(onWifiDisconnect);
+  WiFi.onEvent(onWifiConnect, ARDUINO_EVENT_WIFI_STA_GOT_IP);
+  WiFi.onEvent(onWifiDisconnect, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
 
   mqttClient.onConnect(onMqttConnect);
   mqttClient.onDisconnect(onMqttDisconnect);

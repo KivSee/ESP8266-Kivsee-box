@@ -33,16 +33,16 @@
 #define OTA_PATCH 0 // Set to 0 if you don't want to update your code over-the-air
 #define OTA_PASS "set_ota_password"
 
-/* wiring the MFRC522 to ESP8266 (ESP-12)
-RST     = GPIO5 = D1
-SDA(SS) = GPIO4 = D2
-MOSI    = GPIO13 = D7
-MISO    = GPIO12 = D6
-SCK     = GPIO14 = D5
+/* wiring the MFRC522 to ESP32
+RST     = GPIO22
+SDA(SS) = GPIO21
+MOSI    = GPIO23
+MISO    = GPIO19
+SCK     = GPIO18
 GND     = GND
 3.3V    = 3.3V
 */
 
 // MFRC522 Config
-#define RST_PIN         5
-#define SS_PIN          4
+#define RST_PIN         22
+#define SS_PIN          21
